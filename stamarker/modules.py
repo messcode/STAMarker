@@ -82,7 +82,7 @@ class GATConv(MessagePassing):
         self.attentions = None
 
     def forward(self, x: Union[Tensor, OptPairTensor], edge_index: Adj,
-                size: Size = None, return_attention_weights=None, attention=True, tied_attention = None):
+                size: Size = None, return_attention_weights=None, attention=True, tied_attention=None):
         # type: (Union[Tensor, OptPairTensor], Tensor, Size, NoneType) -> Tensor  # noqa
         # type: (Union[Tensor, OptPairTensor], SparseTensor, Size, NoneType) -> Tensor  # noqa
         # type: (Union[Tensor, OptPairTensor], Tensor, Size, bool) -> Tuple[Tensor, Tuple[Tensor, Tensor]]  # noqa
@@ -124,7 +124,6 @@ class GATConv(MessagePassing):
             self.attentions = alpha
         else:
             alpha = tied_attention
-
 
         if self.add_self_loops:
             if isinstance(edge_index, Tensor):

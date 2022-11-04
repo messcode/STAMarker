@@ -7,7 +7,7 @@ from torch.utils.data import Dataset
 from pytorch_lightning.utilities.types import EVAL_DATALOADERS
 from torch_geometric.loader import NeighborLoader
 from torch_geometric.data import Data
-from utils.spatial import compute_spatial_net, stats_spatial_net, compute_edge_list
+from .utils import compute_spatial_net, stats_spatial_net, compute_edge_list
 
 
 class Batch(dict):
@@ -30,7 +30,7 @@ class RepDataset(Dataset):
                  x,
                  target_y,
                  ground_truth=None):
-        assert(len(x) == len(target_y))
+        assert (len(x) == len(target_y))
         self.x = x
         self.target_y = target_y
         self.ground_truth = ground_truth
@@ -52,15 +52,11 @@ class RepDataset(Dataset):
 
 class SpatialDataModule(pl.LightningDataModule):
     def __init__(self,
-                 data_dir: str = "./",
-                 dataset_name: str = "",
                  full_batch: bool = True,
                  batch_size: int = 1000,
                  num_neighbors: List[int] = None,
                  num_workers=None,
                  pin_memory=False) -> None:
-        self.data_dir = data_dir
-        self.dataset_name = dataset_name
         self.batch_size = batch_size
         self.full_batch = full_batch
         self.has_y = False
@@ -91,12 +87,6 @@ class SpatialDataModule(pl.LightningDataModule):
         self.train_dataset = Data(edge_index=torch.LongTensor(np.array([edge_list[0], edge_list[1]])),
                                   x=torch.FloatTensor(self.ann_data.X),
                                   y=None)
-
-    def set_y(self, y):
-        if hasattr(self.train_dataset, "ground_truth"):
-            assert(self.train_dataset.ground_truth.size == y.size)
-        self.has_y = True
-        self.train_dataset.y = torch.LongTensor(y)
 
     def train_dataloader(self):
         if self.full_batch:

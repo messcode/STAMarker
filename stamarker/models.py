@@ -9,9 +9,30 @@ from torch_geometric.data import Data
 from sklearn.metrics import adjusted_rand_score, confusion_matrix
 from .modules import STAGATEModule, StackMLPModule
 from .dataset import RepDataset, Batch
-from utils.optimizers import get_optimizer, get_scheduler
-from utils.time import Timer
+from utils import Timer
 
+def get_optimizer(name):
+    if name == "ADAM":
+        return torch.optim.Adam
+    elif name == "ADAGRAD":
+        return torch.optim.Adagrad
+    elif name == "ADADELTA":
+        return torch.optim.Adadelta
+    elif name == "RMS":
+        return torch.optim.RMSprop
+    elif name == "ASGD":
+        return torch.optim.ASGD
+    else:
+        raise NotImplementedError
+
+
+def get_scheduler(name):
+    if name == "STEP_LR":
+        return torch.optim.lr_scheduler.StepLR
+    elif name == "EXP_LR":
+        return torch.optim.lr_scheduler.ExponentialLR
+    else:
+        raise NotImplementedError
 
 class BaseModule(pl.LightningModule, ABC):
     def __init__(self):
@@ -86,47 +107,9 @@ class intSTAGATE(BaseModule):
 
     def validation_step(self, batch, batch_idx):
         pass
-        # if not self.clustering:
-        #     return
-        # batch = batch.to(self.device)
-        # with torch.no_grad():
-        #     rep, _ = self.model(batch.x, batch.edge_index)
-        # if not hasattr(batch, "ground_truth"):
-        #     return rep.detach().cpu().numpy()
-        # else:
-        #     return rep.detach().cpu().numpy(), batch.ground_truth.detach().cpu().numpy()
 
     def validation_epoch_end(self, outputs):
         pass
-        # if not self.clustering:
-        #     return
-        # if "r_seed" not in self.valid_args:
-        #     self.valid_args["r_seed"] = 42
-        # if "model_name" not in self.valid_args:
-        #     self.valid_args["model_name"] = "EEE"
-        # if "n_clusters" not in self.valid_args:
-        #     raise AssertionError("Missing n_cluster for validation epoch")
-        # # process outputs
-        # rep, ground_truth = [], []
-        # if len(outputs[0]) == 2:
-        #     for pair in outputs:
-        #         rep.append(pair[0])
-        #         ground_truth.append(pair[1])
-        #     rep = np.concatenate(rep)
-        #     ground_truth = np.concatenate(ground_truth)
-        # else:
-        #     rep = np.concatenate(outputs)
-        # try:
-        #     pred_labels = mclust_R(rep, self.valid_args["n_clusters"], random_seed=self.valid_args["r_seed"],
-        #                            model_name=self.valid_args["model_name"])
-        #     indices = ground_truth > -1
-        #     ari = adjusted_rand_score(ground_truth[indices], pred_labels[indices])
-        #     self.log("Validation mclust|ARI", ari)
-        #     self.logger.experiment.add_scalar('auto_encoder/ari', ari, self.current_epoch)
-        #     self.pred_labels = pred_labels
-        #     self.val_ari = ari
-        # except:
-        #     warn("MClust failed at epoch {}".format(self.current_epoch))
 
 
 def _compute_correct(scores, target_y):
