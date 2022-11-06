@@ -31,8 +31,10 @@ stamarker.train_classifiers(data_module, n_class)
 We can get the saliency maps by the following code
 ``` python
 smaps = stamarker.compute_smaps(data_module)
-consensus_labels = np.load(stamarker.save_dir + "/consensus_labels.npy")
-# select the spatial domain-specific SVGs of spatial domain 0
+consensus_labels = np.load(stamarker.save_dir + "/consensus_labels.npy")4
+```
+Select the spatial domain-specific SVGs of spatial domain 0 by one line.
+```python
 svg_domain0 = select_svgs(smaps, 0, consensus_labels, alpha=1.5)
 ```
 ## Tutorial
