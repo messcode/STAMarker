@@ -8,14 +8,18 @@ import glob
 import sys
 import numpy as np
 import scipy
+import scanpy as sc
 from pytorch_lightning.loggers import TensorBoardLogger
 from scipy.cluster import hierarchy
 from .models import intSTAGATE, StackClassifier
 from .utils import plot_consensus_map, consensus_matrix, Timer
 from .dataset import SpatialDataModule
 from .modules import STAGATEClsModule
+import logging
 
 
+FORMAT = "%(asctime)s %(levelname)s %(message)s"
+logging.basicConfig(format=FORMAT, datefmt='%Y-%m-%d %H:%M:%S')
 def make_spatial_data(ann_data):
     """
     Make SpatialDataModule object from Scanpy annData object
@@ -27,7 +31,7 @@ def make_spatial_data(ann_data):
 
 
 class STAMarker:
-    def __init__(self, n, save_dir, config, loggin_level=logging.INFO):
+    def __init__(self, n, save_dir, config, logging_level=logging.INFO):
         """
         n: int, number of graph attention auto-econders to train
         save_dir: directory to save the models
@@ -35,32 +39,30 @@ class STAMarker:
         """
         self.n = n
         self.save_dir = save_dir
+        if not os.path.exists(save_dir):
+            os.mkdir(save_dir)
+            logging.info("Create save directory {}".format(save_dir))
         self.version_dirs = [os.path.join(save_dir, f"version_{i}") for i in range(n)]
         self.config = config
-        self.logger = logging.basicConfig(level=logging.INFO)
-        self.stages = set()
+        self.logger = logging.getLogger("STAMarker")
+        self.logger.setLevel(logging_level)
         self.consensus_labels = None
 
     def train_auto_encoders(self, data_module):
         for seed in range(self.n):
-            self.train_auto_encoder(data_module, seed, self.config)
+            self._train_auto_encoder(data_module, seed, self.config)
         self.logger.info("Finished training {} auto-encoders".format(self.n))
-        self.stages.add("auto_encoder")
 
     def clustering(self, data_module, cluster_method, cluster_params):
         """
         Cluster the latent space of the trained auto-encoders
+        Cluster method should be "louvain" or "mclust"
         """
-        if self.stages < {"auto_encoder"}:
-            raise ValueError("Please train auto-encoders first")
         for version_dir in self.version_dirs:
             self._clustering(data_module, version_dir, cluster_method, cluster_params)
         self.logger.info("Finished {} clustering with {}".format(self.n, cluster_method))
-        self.add_stage("clustering")
 
     def consensus_clustering(self, n_clusters, name="cluster_labels.npy"):
-        if self.stages < {"clustering"}:
-            raise ValueError("Please run clustering first")
         sys.setrecursionlimit(100000)
         label_files = glob.glob(self.save_dir + f"/version_*/{name}")
         labels_list = list(map(lambda file: np.load(file), label_files))
@@ -71,19 +73,13 @@ class STAMarker:
         np.save(os.path.join(self.save_dir, "consensus"), consensus_labels)
         self.consensus_labels = consensus_labels
         self.logger.info("Save consensus labels to ", os.path.join(self.save_dir, "consensus.npz"))
-        self.stages.add("consensus_clustering")
 
     def train_classifiers(self, data_module, n_clusters, name="cluster_labels.npy"):
-        if self.stages < {"consensus_clustering"}:
-            raise ValueError("Please run consensus clustering first")
         for version_dir in self.version_dirs:
             self._train_classifier(data_module, version_dir, self.config)
         self.logger("Finished training {} classifiers".format(self.n))
-        self.stages.add("classifier")
 
     def compute_smaps(self, data_module, return_recon=True, normalize=True):
-        if self.stages < {"auto_encoder", "classifier"}:
-            raise ValueError("Please train auto-encoders and classifiers first")
         smaps = []
         if return_recon:
             recons = []
@@ -129,7 +125,6 @@ class STAMarker:
         version = f"version_{seed}"
         version_dir = os.path.join(self.save_dir, version)
         if os.path.exists(version_dir):
-
             shutil.rmtree(version_dir)
         os.makedirs(version_dir, exist_ok=True)
         logger = TensorBoardLogger(save_dir=self.save_dir, name=None,

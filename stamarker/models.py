@@ -9,7 +9,7 @@ from torch_geometric.data import Data
 from sklearn.metrics import adjusted_rand_score, confusion_matrix
 from .modules import STAGATEModule, StackMLPModule
 from .dataset import RepDataset, Batch
-from utils import Timer
+from .utils import Timer
 
 def get_optimizer(name):
     if name == "ADAM":

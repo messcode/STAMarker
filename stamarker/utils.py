@@ -3,9 +3,13 @@ import yaml
 import os
 import seaborn as sns
 import numpy as np
+import pandas as pd
 import scanpy as sc
+import itertools
+import scipy
 from scipy.spatial import distance
 from scipy.cluster import hierarchy
+import sklearn.neighbors
 from typing import List
 
 
@@ -162,9 +166,9 @@ def compute_edge_list(ann_data):
     cells_id_tran = dict(zip(cells, range(cells.shape[0])))
     G_df['Cell1'] = G_df['Cell1'].map(cells_id_tran)
     G_df['Cell2'] = G_df['Cell2'].map(cells_id_tran)
-    G = sp.coo_matrix((np.ones(G_df.shape[0]), (G_df['Cell1'], G_df['Cell2'])),
+    G = scipy.sparse.coo_matrix((np.ones(G_df.shape[0]), (G_df['Cell1'], G_df['Cell2'])),
                       shape=(ann_data.n_obs, ann_data.n_obs))
-    G = G + sp.eye(G.shape[0])
+    G = G + scipy.sparse.eye(G.shape[0])
     edge_list = np.nonzero(G)
     return edge_list
 

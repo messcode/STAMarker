@@ -1,0 +1,35 @@
+root_dir: exper # Root folder to save the model and TensorBoard data
+early_stopping: False
+stagate_trainer:
+  max_epochs: 30  # Maximum number of epochs to train
+  min_epochs: 30  # Min number of epochs to train
+  limit_train_batches: 1.0
+  limit_val_batches: 1.0
+  limit_test_batches: 1.0
+  check_val_every_n_epoch: 100
+  log_every_n_steps: 2 # How often to add logging rows (does not write to disk)
+  precision: 32
+  detect_anomaly: True
+  auto_select_gpus: True
+  enable_model_summary: False
+  gpus: 1 # number of gpus to train on (int) or which GPUs to train on (list or str) applied per node
+  num_sanity_val_steps: 10
+  track_grad_norm: -1 # Otherwise tracks that norm (2 for 2-norm)
+  enable_checkpointing: False
+
+classifier_trainer:
+  max_epochs: 300 # Maximum number of epochs to train
+  min_epochs: 300 # Min number of epochs to train
+  limit_train_batches: 1.0
+  limit_val_batches: 1.0
+  limit_test_batches: 1.0
+  check_val_every_n_epoch: 100
+  log_every_n_steps: 2 # How often to add logging rows (does not write to disk)
+  precision: 32
+  detect_anomaly: True
+  gpus: 1 # number of gpus to train on (int) or which GPUs to train on (list or str) applied per node
+  auto_select_gpus: True
+  enable_model_summary: False
+  num_sanity_val_steps: 10
+  track_grad_norm: -1 # Otherwise tracks that norm (2 for 2-norm)
+  enable_checkpointing: False
