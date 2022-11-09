@@ -40,7 +40,7 @@ Select the spatial domain-specific SVGs of spatial domain 0 by one line.
 svg_domain0 = select_svgs(smaps, 0, consensus_labels, alpha=1.5)
 ```
 ## Tutorial
-- [T1 Mouse cerebellum dataset](./tutorial/App-%20mouse-%20cerebellum.ipynb)
+- [T1 Mouse cerebellum dataset](./tutorial/Mouse-cerebellum.ipynb)
 
 ## Contact
 If you have any problem regarding STAMarker， please contact zhangchihao11@outlook.com.
