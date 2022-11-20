@@ -184,3 +184,11 @@ def stats_spatial_net(ann_data):
     plt.xlabel('')
     plt.title('Number of Neighbors (Mean=%.2f)' % Mean_edge)
     ax.bar(plot_df.index, plot_df)
+
+def select_svgs(smap, domain_id, domain_labels, alpha=1.5):
+    """
+    Select spatial domain SVGs (spatially variable genes)
+    """
+    scores = np.linalg.norm(smap.iloc[domain_labels==domain_id, :], axis=0)
+    mu, std = np.mean(scores), np.std(scores)
+    return smap.columns[scores > mu + alpha * std].tolist()
