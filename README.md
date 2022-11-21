@@ -39,8 +39,23 @@ Select the spatial domain-specific SVGs of spatial domain 0 by one line.
 ```python
 svg_domain0 = select_svgs(smaps, 0, consensus_labels, alpha=1.5)
 ```
+## Trained models
+The trained models are availabe at [here](https://drive.google.com/drive/folders/1mKhOTI2nDmfA4neMKQFQk9iMVbEqi8RH?usp=sharing).
+
 ## Tutorial
 - [T1 Mouse cerebellum dataset](./tutorial/Mouse-cerebellum.ipynb)
+
+## Citation
+
+```latex
+@article{zhang2022stamarker,
+  title={STAMarker: Determining spatial domain-specific variable genes with saliency maps in deep learning},
+  author={Zhang, Chihao and Dong, Kangning and Aihara, Kazuyuki and Chen, Luonan and Zhang, Shihua},
+  journal={bioRxiv},
+  year={2022},
+  publisher={Cold Spring Harbor Laboratory}
+}
+```
 
 ## Contact
 If you have any problem regarding STAMarker， please contact zhangchihao11@outlook.com.
