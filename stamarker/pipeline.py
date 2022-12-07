@@ -1,12 +1,14 @@
 import pytorch_lightning as pl
 import copy
 import torch
+import torch.nn.functional as F
 import os
 import shutil
 import logging
 import glob
 import sys
 import numpy as np
+import pandas as pd
 import scipy
 import scanpy as sc
 from pytorch_lightning.loggers import TensorBoardLogger
@@ -62,6 +64,18 @@ class STAMarker:
             self._clustering(data_module, version_dir, cluster_method, cluster_params)
         self.logger.info("Finished {} clustering with {}".format(self.n, cluster_method))
 
+    
+    def _clustering(self, data_module, version_dir, cluster_method, cluster_params):
+        """
+        Cluster the latent space of the trained auto-encoder
+        """
+        if cluster_method == "louvain":
+            run_louvain(data_module, version_dir, cluster_params)
+        elif cluster_method == "mclust":
+            run_mclust(data_module, version_dir, cluster_params)
+        else:
+            raise ValueError("Unknown clustering method")
+
     def consensus_clustering(self, n_clusters, name="cluster_labels.npy"):
         sys.setrecursionlimit(100000)
         label_files = glob.glob(self.save_dir + f"/version_*/{name}")
@@ -70,16 +84,46 @@ class STAMarker:
         row_linkage, _, figure = plot_consensus_map(cons_mat, return_linkage=True)
         figure.savefig(os.path.join(self.save_dir, "consensus_clustering.png"), dpi=300)
         consensus_labels = hierarchy.cut_tree(row_linkage, n_clusters).squeeze()
-        np.save(os.path.join(self.save_dir, "consensus"), consensus_labels)
+        np.save(os.path.join(self.save_dir, "consensus_labels"), consensus_labels)
         self.consensus_labels = consensus_labels
-        self.logger.info("Save consensus labels to ", os.path.join(self.save_dir, "consensus.npz"))
+        self.logger.info("Save consensus labels to ".format(os.path.join(self.save_dir, "consensus_labels.npz")))
 
-    def train_classifiers(self, data_module, n_clusters, name="cluster_labels.npy"):
-        for version_dir in self.version_dirs:
-            self._train_classifier(data_module, version_dir, self.config)
-        self.logger("Finished training {} classifiers".format(self.n))
+    def train_classifiers(self, data_module, n_class, 
+                          consensus_labels_path="consensus_labels.npy"):
+        target_y = labels = np.load(os.path.join(self.save_dir, consensus_labels_path))
+        for seed, version_dir in enumerate(self.version_dirs):
+            self._train_classifier(data_module, version_dir, target_y, self.config, n_class, seed=seed)
+        self.logger.info("Finished training {} classifiers".format(self.n))
 
-    def compute_smaps(self, data_module, return_recon=True, normalize=True):
+    def _train_classifier(self, data_module, version_dir, target_y, config, n_classes, seed=None):
+        timer = Timer()
+        pl.seed_everything(seed)
+        rep_dim = config["stagate"]["params"]["hidden_dims"][-1]
+        stagate = intSTAGATE.load_from_checkpoint(os.path.join(version_dir, "checkpoints", "stagate.ckpt"))
+        classifier = StackClassifier(rep_dim, n_classes=n_classes, architecture="MLP")
+        classifier.prepare(stagate, data_module.train_dataset, target_y,
+                           balanced=config["mlp"]["balanced"], test_prop=config["mlp"]["test_prop"])
+        classifier.set_optimizer_params(config["mlp"]["optimizer"], config["mlp"]["scheduler"])
+        logger = TensorBoardLogger(save_dir=self.save_dir, name=None,
+                                   default_hp_metric=False,
+                                   version=seed)
+        trainer = pl.Trainer(logger=logger, **config["classifier_trainer"])
+        timer.tic("clf")
+        trainer.fit(classifier)
+        clf_time = timer.toc("clf")
+        with open(os.path.join(version_dir, "runtime.csv"), "a+") as f:
+            f.write("\n")
+            f.write("{}, clf_time, {:.2f}, ".format(seed, clf_time / 60))
+        trainer.save_checkpoint(os.path.join(version_dir, "checkpoints", "mlp.ckpt"))
+        target_y = classifier.dataset.target_y.numpy()
+        all_props = class_proportions(target_y)
+        val_props = class_proportions(target_y[classifier.val_dataset.indices])
+        if self.logger.level == logging.DEBUG:
+            print("All class proportions " + "|".join(["{:.2f}%".format(prop * 100) for prop in all_props]))
+            print("Val class proportions " + "|".join(["{:.2f}%".format(prop * 100) for prop in val_props]))
+        np.save(os.path.join(version_dir, "confusion.npy"), classifier.confusion)
+
+    def compute_smaps(self, data_module, return_recon=False, normalize=False):
         smaps = []
         if return_recon:
             recons = []
@@ -91,7 +135,10 @@ class STAMarker:
             else:
                 smap = self._compute_smap(data_module, version_dir, return_recon=return_recon)
                 smaps.append(smap)
+        smaps = np.array(smaps).mean(axis=0)
+        smaps = pd.DataFrame(smaps, columns=data_module.ann_data.var.index)
         if return_recon:
+            recons = np.array(recons).mean(axis=0)
             return smaps, recons
         else:
             return smaps
@@ -104,18 +151,6 @@ class STAMarker:
         for l in unique_labels:
             scores[labels == l, :] = scipy.stats.zscore(scores[labels == l, :], axis=1)
         return scores
-
-
-    def _clustering(self, data_module, version_dir, cluster_method, cluster_params):
-        """
-        Cluster the latent space of the trained auto-encoder
-        """
-        if cluster_method == "louvain":
-            run_louvain(data_module, version_dir, cluster_params)
-        elif cluster_method == "mclust":
-            run_mclust(data_module, version_dir, cluster_params)
-        else:
-            raise ValueError("Unknown clustering method")
 
     def _train_auto_encoder(self, data_module, seed, config):
         """
@@ -145,34 +180,6 @@ class STAMarker:
             torch.cuda.empty_cache()
         logging.info(f"Finshed running version {seed}")
 
-    def _train_classifier(self, data_module, version_dir, target_y, config, n_classes, seed=None):
-        timer = Timer()
-        pl.seed_everything(seed)
-        rep_dim = config["stagate"]["params"]["hidden_dims"][-1]
-        stagate = intSTAGATE.load_from_checkpoint(os.path.join(version_dir, "checkpoints", "stagate.ckpt"))
-        classifier = StackClassifier(rep_dim, n_classes=n_classes, architecture="MLP")
-        classifier.prepare(stagate, data_module.train_dataset, target_y,
-                           balanced=config["mlp"]["balanced"], test_prop=config["mlp"]["test_prop"])
-        classifier.set_optimizer_params(config["mlp"]["optimizer"], config["mlp"]["scheduler"])
-        logger = TensorBoardLogger(save_dir=config["save_dir"], name=None,
-                                   default_hp_metric=False,
-                                   version=seed)
-        trainer = pl.Trainer(logger=logger, **config["classifier_trainer"])
-        timer.tic("clf")
-        trainer.fit(classifier)
-        clf_time = timer.toc("clf")
-        with open(os.path.join(version_dir, "runtime.csv"), "a+") as f:
-            f.write("\n")
-            f.write("{}, clf_time, {:.2f}, ".format(seed, clf_time / 60))
-        trainer.save_checkpoint(os.path.join(version_dir, "checkpoints", "mlp.ckpt"))
-        target_y = classifier.dataset.target_y.numpy()
-        all_props = class_proportions(target_y)
-        val_props = class_proportions(target_y[classifier.val_dataset.indices])
-        if self.logger.level == logging.DEBUG:
-            print("All class proportions " + "|".join(["{:.2f}%".format(prop * 100) for prop in all_props]))
-            print("Val class proportions " + "|".join(["{:.2f}%".format(prop * 100) for prop in val_props]))
-        np.save(os.path.join(version_dir, "confusion.npy"), classifier.confusion)
-
     def _compute_smap(self, data_module, version_dir, return_recon=True):
         """
         Compute the saliency map of the trained auto-encoder
@@ -182,7 +189,7 @@ class STAMarker:
         stagate_cls = STAGATEClsModule(stagate.model, cls.model)
         smap, _ = stagate_cls.get_saliency_map(data_module.train_dataset.x,
                                                data_module.train_dataset.edge_index)
-        smap = smap.detach().cpu().numpy()
+        smap = F.relu(smap).cpu().detach().numpy() # filter out zeros
         if return_recon:
             recon = stagate(data_module.train_dataset.x, data_module.train_dataset.edge_index)[1].cpu().detach().numpy()
             return smap, recon
