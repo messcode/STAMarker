@@ -1,8 +1,8 @@
 root_dir: exper # Root folder to save the model and TensorBoard data
 early_stopping: False
 stagate_trainer:
-  max_epochs: 30  # Maximum number of epochs to train
-  min_epochs: 30  # Min number of epochs to train
+  max_epochs: 1000  # Maximum number of epochs to train
+  min_epochs: 500  # Min number of epochs to train
   limit_train_batches: 1.0
   limit_val_batches: 1.0
   limit_test_batches: 1.0
