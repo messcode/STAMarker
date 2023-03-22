@@ -1,6 +1,0 @@
-architecture: MLP
-gradient_clipping: 5.0
-hidden_dims:
-- 512
-- 30
-in_features: 3000
