@@ -45,7 +45,7 @@ The trained models are availabe at [here](https://drive.google.com/drive/folders
 ## Tutorial
 - [T1 Mouse cerebellum dataset](./tutorial/Mouse-cerebellum.ipynb)
 - [T2  Human DLPFC 10x Visum dataset](./tutorial/Human-DLPFC-10x-Visum.ipynb)
-
+Please also refer to the configuration yaml file [description](./tutorial/README.md).
 ## Citation
 
 ```latex
