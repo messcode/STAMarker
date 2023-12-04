@@ -1,8 +1,0 @@
-architecture: MLP
-batch_size: 1000
-hidden_dims:
-- 30
-in_features: 30
-n_classes: 7
-shuffle: false
-sta_path: null

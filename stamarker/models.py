@@ -239,8 +239,8 @@ class StackClassifier(BaseModule):
                                           torch.mean(all_loss), self.current_epoch)
         self.logger.experiment.add_scalar(f'classifier-{self.architecture}/val_acc',
                                           val_acc, self.current_epoch)
-        print("\n validation ACC={:.4f}".format(val_acc))
-        print(confusion)
+        # print("\n validation ACC={:.4f}".format(val_acc))
+        # print(confusion)
         self.confusion = confusion
 
     def train_dataloader(self):

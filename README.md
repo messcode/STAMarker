@@ -4,6 +4,8 @@ STAMarker is a three-stage framework that consists of an ensemble of graph atten
 
  Given the spatial transcriptomics of a tissue section, STAMarker first trains an ensemble of graph attention auto-encoders that consists of M STAGATE models to learn the low-dimensional latent embeddings of spots, cluster them to obtain M grouping results, computes the clustering connectivity matrix and applies hierarchical clustering to obtain the spatial domains. STAMarker further models the relationships between the embeddings of the M auto-encoders and the spatial domains by training M base classifiers. At last, STAMarker computes the saliency map by first stacking the encoder and the corresponding classifier and then backpropagating the gradient to the input spatial transcriptomics matrix. STAMarker selects the domain-specific SVGs based on the genes’ saliency scores in each spatial domain.
 ![Framework of STAMarker](./fig/stamarker_framework.png)
+## Step by step installation
+Please refer to the step-by-step  [guide](./docs/step-by-step-installation.md) for installation.
 ## Usage
 The pipeline of STAMarker is wrapped in the core class `STAMarker`.
 ```python

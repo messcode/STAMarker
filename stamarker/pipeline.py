@@ -19,9 +19,10 @@ from .dataset import SpatialDataModule
 from .modules import STAGATEClsModule
 import logging
 
-
 FORMAT = "%(asctime)s %(levelname)s %(message)s"
 logging.basicConfig(format=FORMAT, datefmt='%Y-%m-%d %H:%M:%S')
+
+
 def make_spatial_data(ann_data):
     """
     Make SpatialDataModule object from Scanpy annData object
@@ -64,7 +65,6 @@ class STAMarker:
             self._clustering(data_module, version_dir, cluster_method, cluster_params)
         self.logger.info("Finished {} clustering with {}".format(self.n, cluster_method))
 
-    
     def _clustering(self, data_module, version_dir, cluster_method, cluster_params):
         """
         Cluster the latent space of the trained auto-encoder
@@ -88,7 +88,7 @@ class STAMarker:
         self.consensus_labels = consensus_labels
         self.logger.info("Save consensus labels to ".format(os.path.join(self.save_dir, "consensus_labels.npz")))
 
-    def train_classifiers(self, data_module, n_class, 
+    def train_classifiers(self, data_module, n_class,
                           consensus_labels_path="consensus_labels.npy"):
         target_y = labels = np.load(os.path.join(self.save_dir, consensus_labels_path))
         for seed, version_dir in enumerate(self.version_dirs):
@@ -116,11 +116,11 @@ class STAMarker:
             f.write("{}, clf_time, {:.2f}, ".format(seed, clf_time / 60))
         trainer.save_checkpoint(os.path.join(version_dir, "checkpoints", "mlp.ckpt"))
         target_y = classifier.dataset.target_y.numpy()
-        all_props = class_proportions(target_y)
-        val_props = class_proportions(target_y[classifier.val_dataset.indices])
-        if self.logger.level == logging.DEBUG:
-            print("All class proportions " + "|".join(["{:.2f}%".format(prop * 100) for prop in all_props]))
-            print("Val class proportions " + "|".join(["{:.2f}%".format(prop * 100) for prop in val_props]))
+        # all_props = class_proportions(target_y)
+        # val_props = class_proportions(target_y[classifier.val_dataset.indices])
+        # if self.logger.level == logging.DEBUG:
+        #     print("All class proportions " + "|".join(["{:.2f}%".format(prop * 100) for prop in all_props]))
+        #     print("Val class proportions " + "|".join(["{:.2f}%".format(prop * 100) for prop in val_props]))
         np.save(os.path.join(version_dir, "confusion.npy"), classifier.confusion)
 
     def compute_smaps(self, data_module, return_recon=False, normalize=False):
@@ -143,7 +143,6 @@ class STAMarker:
         else:
             return smaps
         self.logger.info("Finished computing {} smaps".format(self.n))
-
 
     def _compute_smap_zscore(self, smap, labels, logtransform=False):
         scores = np.log(smap + 1) if logtransform else copy.copy(smap)
@@ -189,7 +188,7 @@ class STAMarker:
         stagate_cls = STAGATEClsModule(stagate.model, cls.model)
         smap, _ = stagate_cls.get_saliency_map(data_module.train_dataset.x,
                                                data_module.train_dataset.edge_index)
-        smap = F.relu(smap).cpu().detach().numpy() # filter out zeros
+        smap = F.relu(smap).cpu().detach().numpy()  # filter out zeros
         if return_recon:
             recon = stagate(data_module.train_dataset.x, data_module.train_dataset.edge_index)[1].cpu().detach().numpy()
             return smap, recon
@@ -239,14 +238,8 @@ def run_mclust(data_module, version_dir, n_clusters, name="cluster_labels"):
     np.save(save_path, labels.astype("int"))
     print("Save MClust results to {}".format(save_path))
 
+
 def class_proportions(target):
     n_classes = len(np.unique(target))
     props = np.array([np.sum(target == i) for i in range(n_classes)])
     return props / np.sum(props)
-
-
-
-
-
-
-
