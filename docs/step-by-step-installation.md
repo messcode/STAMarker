@@ -3,7 +3,10 @@
 ``` bash
 conda create -n marker python=3.8 ipython jupyter
 ```
+
 -  Activate the environment
+
+  
 ``` bash
 conda activate myenv
 ```
