@@ -5,7 +5,7 @@ STAMarker is a three-stage framework that consists of an ensemble of graph atten
  Given the spatial transcriptomics of a tissue section, STAMarker first trains an ensemble of graph attention auto-encoders that consists of M STAGATE models to learn the low-dimensional latent embeddings of spots, cluster them to obtain M grouping results, computes the clustering connectivity matrix and applies hierarchical clustering to obtain the spatial domains. STAMarker further models the relationships between the embeddings of the M auto-encoders and the spatial domains by training M base classifiers. At last, STAMarker computes the saliency map by first stacking the encoder and the corresponding classifier and then backpropagating the gradient to the input spatial transcriptomics matrix. STAMarker selects the domain-specific SVGs based on the genes’ saliency scores in each spatial domain.
 ![Framework of STAMarker](./fig/stamarker_framework.png)
 ## Step by step installation
-Please refer to the step-by-step  [guide](./docs/step-by-step-installation.md) for installation.
+Please refer to [the step-by-step  guide](./docs/step-by-step-installation.md) for installation.
 ## Usage
 The pipeline of STAMarker is wrapped in the core class `STAMarker`.
 ```python
@@ -49,15 +49,21 @@ The trained models are availabe at [here](https://drive.google.com/drive/folders
 - [T2  Human DLPFC 10x Visum dataset](./tutorial/Human-DLPFC-10x-Visum.ipynb)
 
 Please also refer to the configuration yaml file [description](./tutorial/README.md).
+## News
+- **2023-11-10** Our paper has been published at [Nucleic Acide Research](https://doi.org/10.1093/nar/gkad801).
+
 ## Citation
 
 ```latex
-@article{zhang2022stamarker,
-  title={STAMarker: Determining spatial domain-specific variable genes with saliency maps in deep learning},
-  author={Zhang, Chihao and Dong, Kangning and Aihara, Kazuyuki and Chen, Luonan and Zhang, Shihua},
-  journal={bioRxiv},
-  year={2022},
-  publisher={Cold Spring Harbor Laboratory}
+@article{Zhang2023,
+    author = {Zhang, Chihao and Dong, Kangning and Aihara, Kazuyuki and Chen, Luonan and Zhang, Shihua},
+    title = {STAMarker: determining spatial domain-specific variable genes with saliency maps in deep learning},
+    journal = {Nucleic Acids Research},
+    pages = {gkad801},
+    year = {2023},
+    month = {10},
+    issn = {0305-1048},
+    doi = {10.1093/nar/gkad801},
 }
 ```
 
