@@ -1,2 +1,4 @@
 tutorial\.ipynb_checkpoints
 tutorial\DLPFC_output\*
+tutorial\test-Human-DLPFC-10x-Visum.ipynb
+*.csv
