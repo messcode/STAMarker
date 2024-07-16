@@ -6,21 +6,26 @@ import numpy as np
 import pandas as pd
 import scanpy as sc
 import itertools
+import matplotlib.pyplot as plt
 import scipy
 from scipy.spatial import distance
 from scipy.cluster import hierarchy
+from scipy.optimize import linear_sum_assignment
 import sklearn.neighbors
 from typing import List
 
 
-def plot_consensus_map(cmat, method="average", return_linkage=True, **kwargs):
-    row_linkage = hierarchy.linkage(distance.pdist(cmat), method=method)
-    col_linkage = hierarchy.linkage(distance.pdist(cmat.T), method=method)
-    figure = sns.clustermap(cmat, row_linkage=row_linkage, col_linkage=col_linkage, **kwargs)
-    if return_linkage:
-        return row_linkage, col_linkage, figure
-    else:
-        return figure
+def plot_clustered_consensus_matrix(cmat, n_clusters, method="average", resolution=0.5,
+                                    figsize=(5, 5)):
+    n_samples = cmat.shape[0]
+    linkage_matrix = hierarchy.linkage(cmat, method='average', metric='euclidean')
+    cluster_labels = hierarchy.fcluster(linkage_matrix, n_clusters, criterion='maxclust')
+    visualization_clusters = hierarchy.fcluster(linkage_matrix, int(n_samples * resolution), criterion='maxclust')
+    sorted_indices = np.argsort(visualization_clusters)
+    sorted_cmat = cmat[sorted_indices][:, sorted_indices]
+    figure, ax = plt.subplots(1, 1, figsize=figsize)
+    ax.imshow(sorted_cmat, cmap='magma', interpolation='nearest')
+    return figure, cluster_labels
 
 
 class Timer:
@@ -97,11 +102,36 @@ def labels_connectivity_mat(labels: np.ndarray):
     return mat
 
 
+# `consensus_matrix` is replaced by `compute_consensus_matrix` which is much more efficient by using linear sum assignment.
 def consensus_matrix(labels_list: List[np.ndarray]):
     mat = 0
     for labels in labels_list:
         mat += labels_connectivity_mat(labels)
     return mat / float(len(labels_list))
+
+
+def compute_consensus_matrix(clustering_results):
+    """
+    Compute the consensus matrix from M times clustering results.
+    Parameters:
+    -- clustering_results: numpy array of shape (M, n)
+        M times clustering results, where M is the number of times clustering was performed
+        and n is the number of data points or elements in the clustering results.
+    Returns:
+    -- consensus_matrix: numpy array of shape (n, n)
+        Consensus matrix, where n is the number of data points or elements in the clustering results.
+    """
+    M, n = clustering_results.shape
+    # Compute dissimilarity matrix between clustering results using cdist
+    dissimilarity_matrix = distance.cdist(clustering_results, clustering_results, metric='hamming')
+    # Compute consensus matrix using linear sum assignment
+    row_ind, col_ind = linear_sum_assignment(dissimilarity_matrix)
+    consensus_matrix = np.zeros((n, n))
+    for i, j in zip(row_ind, col_ind):
+        consensus_matrix += (clustering_results[i][:, np.newaxis] == clustering_results[j])
+    # Divide the consensus matrix by the number of comparisons to obtain the consensus percentages
+    consensus_matrix /= M
+    return consensus_matrix
 
 
 def compute_spatial_net(ann_data, rad_cutoff=None, k_cutoff=None,

@@ -14,7 +14,7 @@ import scanpy as sc
 from pytorch_lightning.loggers import TensorBoardLogger
 from scipy.cluster import hierarchy
 from .models import intSTAGATE, StackClassifier
-from .utils import plot_consensus_map, consensus_matrix, Timer
+from .utils import plot_clustered_consensus_matrix, compute_consensus_matrix, Timer
 from .dataset import SpatialDataModule
 from .modules import STAGATEClsModule
 import logging
@@ -31,6 +31,22 @@ def make_spatial_data(ann_data):
     ann_data.X = ann_data.X.toarray()
     data_module.ann_data = ann_data
     return data_module
+
+
+
+def convert_labels(labels):
+    """
+    convert labels to 0,1, 2, ...
+    :param labels:
+    :return:
+    """
+    label_dict = dict()
+    for i, label in enumerate(np.unique(labels)):
+        label_dict[label] = i
+    new_labels = np.zeros_like(labels)
+    for i, label in enumerate(labels):
+        new_labels[i] = label_dict[label]
+    return new_labels
 
 
 class STAMarker:
@@ -76,21 +92,29 @@ class STAMarker:
         else:
             raise ValueError("Unknown clustering method")
 
-    def consensus_clustering(self, n_clusters, name="cluster_labels.npy"):
-        sys.setrecursionlimit(100000)
+    def consensus_clustering(self, n_clusters, name="cluster_labels.npy", show_plot=False):
         label_files = glob.glob(self.save_dir + f"/version_*/{name}")
         labels_list = list(map(lambda file: np.load(file), label_files))
-        cons_mat = consensus_matrix(labels_list)
-        row_linkage, _, figure = plot_consensus_map(cons_mat, return_linkage=True)
-        figure.savefig(os.path.join(self.save_dir, "consensus_clustering.png"), dpi=300)
-        consensus_labels = hierarchy.cut_tree(row_linkage, n_clusters).squeeze()
-        np.save(os.path.join(self.save_dir, "consensus_labels"), consensus_labels)
-        self.consensus_labels = consensus_labels
-        self.logger.info("Save consensus labels to ".format(os.path.join(self.save_dir, "consensus_labels.npz")))
+        labels_list = np.vstack(labels_list)
+        cons_mat = compute_consensus_matrix(labels_list)
+        if show_plot:
+            figure, consensus_labels = plot_clustered_consensus_matrix(cons_mat, n_clusters)
+            figure.savefig(os.path.join(self.save_dir,
+                                        "consensus_clustering_{}_clusters.png".format(n_clusters)), dpi=300)
+            print("Save consensus clustering plot to {}".format(os.path.join(self.save_dir, "consensus_clustering.png")))
+            # delete the figure
+            del figure
+        else:
+            linkage_matrix = hierarchy.linkage(cons_mat, method='average', metric='euclidean')
+            consensus_labels = hierarchy.fcluster(linkage_matrix, n_clusters, criterion='maxclust')
+        consensus_labels = convert_labels(consensus_labels)
+        self.consensus_labels = consensus_labels    
+        np.save(os.path.join(self.save_dir, "consensus_labels.npy"), consensus_labels)
+        return consensus_labels
 
     def train_classifiers(self, data_module, n_class,
                           consensus_labels_path="consensus_labels.npy"):
-        target_y = labels = np.load(os.path.join(self.save_dir, consensus_labels_path))
+        target_y = np.load(os.path.join(self.save_dir, consensus_labels_path))
         for seed, version_dir in enumerate(self.version_dirs):
             self._train_classifier(data_module, version_dir, target_y, self.config, n_class, seed=seed)
         self.logger.info("Finished training {} classifiers".format(self.n))
@@ -121,7 +145,7 @@ class STAMarker:
         # if self.logger.level == logging.DEBUG:
         #     print("All class proportions " + "|".join(["{:.2f}%".format(prop * 100) for prop in all_props]))
         #     print("Val class proportions " + "|".join(["{:.2f}%".format(prop * 100) for prop in val_props]))
-        np.save(os.path.join(version_dir, "confusion.npy"), classifier.confusion)
+        # np.save(os.path.join(version_dir, "confusion.npy"), classifier.confusion)
 
     def compute_smaps(self, data_module, return_recon=False, normalize=False):
         smaps = []
